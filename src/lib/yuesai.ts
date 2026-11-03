@@ -1,5 +1,7 @@
 export type EventId = "ms" | "md" | "xd"
 
+export type CourtId = "1" | "2" | "3" | "4"
+
 export type MatchKind = "rr" | "semi" | "third" | "final"
 
 export type RosterMatch = {
@@ -105,6 +107,13 @@ const MIXED_ORDER: [number, number][] = [
 
 export const POINTS: Record<EventId, number> = { ms: 15, md: 21, xd: 21 }
 
+export function pointsOf(id: string): number | null {
+  if (id.startsWith("ms-")) return POINTS.ms
+  if (id.startsWith("md-")) return POINTS.md
+  if (id.startsWith("xd-") || id === "sf1" || id === "sf2" || id === "third" || id === "final") return POINTS.xd
+  return null
+}
+
 function listMatches(event: EventId, order: [number, number][], court: string): RosterMatch[] {
   return order.map(([a, b], index) => ({
     id: `${event}-${index + 1}`,
@@ -127,6 +136,14 @@ export const MIXED_MATCHES: RosterMatch[] = MIXED_ORDER.flatMap(([a, b], index) 
     { id: `xd-B-${round}`, event: "xd" as const, round, court: "4号场", a, b, kind: "rr" as const },
   ]
 })
+
+export function courtIdOf(id: string): CourtId | null {
+  if (id.startsWith("ms-")) return "1"
+  if (id.startsWith("md-")) return "2"
+  if (id.startsWith("xd-A-") || id === "sf1" || id === "third" || id === "final") return "3"
+  if (id.startsWith("xd-B-") || id === "sf2") return "4"
+  return null
+}
 
 export function namesOf(event: EventId, group?: "A" | "B"): string[] {
   if (event === "ms") return SINGLES
@@ -334,6 +351,15 @@ export function knockout(scores: Record<string, Score>): KnockoutSlot[] {
     { id: "third", label: "三四名", court: "3号场", a: semiLoser("sf1", scores), b: semiLoser("sf2", scores), groupA: "L", groupB: "L" },
     { id: "final", label: "决赛", court: "3号场", a: semiWinner("sf1", scores), b: semiWinner("sf2", scores), groupA: "W", groupB: "W" },
   ]
+}
+
+export function expectedPlayers(id: string, scores: Record<string, Score>): { a: number; b: number } | null {
+  const roster = [...SINGLES_MATCHES, ...DOUBLES_MATCHES, ...MIXED_MATCHES].find((match) => match.id === id)
+  if (roster) return { a: roster.a, b: roster.b }
+  if (courtIdOf(id) === null) return null
+  const slot = knockout(scores).find((item) => item.id === id)
+  if (!slot || slot.a === null || slot.b === null) return null
+  return { a: slot.a, b: slot.b }
 }
 
 function pairName(score: Score, id: number, leftGroup: "A" | "B"): string {

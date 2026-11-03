@@ -46,12 +46,12 @@ function Mark({ className }: { className?: string }) {
     <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
       <path
         d="M32 4c7.5 9 11 17 11 27.5a11 11 0 0 1-22 0C21 21 24.5 13 32 4z"
-        fill="#f7f6ea"
-        stroke="#173026"
+        fill="#ffe14a"
+        stroke="#f7ffe9"
         strokeWidth="2.4"
       />
-      <path d="M24 28h16M22.5 34h19M25.5 40h13" stroke="#173026" strokeWidth="1.6" />
-      <path d="M32 46.5v12" stroke="#173026" strokeWidth="2.6" strokeLinecap="round" />
+      <path d="M24 28h16M22.5 34h19M25.5 40h13" stroke="#10240f" strokeWidth="1.6" />
+      <path d="M32 46.5v12" stroke="#f7ffe9" strokeWidth="2.6" strokeLinecap="round" />
     </svg>
   )
 }
@@ -283,13 +283,13 @@ export function QirenApp() {
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
-      <header className="relative mb-5 overflow-hidden rounded-3xl border border-border bg-card">
-        <div className="court-grid absolute inset-0 opacity-70" />
-        <div className="relative flex items-center gap-3 px-4 py-4 sm:px-6">
+      <header className="banner relative mb-5 overflow-hidden rounded-3xl">
+        <div className="court-grid pointer-events-none absolute inset-0 opacity-70" />
+        <div className="relative flex items-center gap-3 px-5 py-4 sm:px-6">
           <Mark className="size-12 shrink-0" />
           <div>
-            <p className="text-xs font-medium tracking-widest text-muted-foreground">羽毛球单打</p>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">七人转</h1>
+            <p className="text-xs font-bold tracking-[0.22em] text-[#ffe14a]">羽毛球单打</p>
+            <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">七人转</h1>
           </div>
         </div>
       </header>

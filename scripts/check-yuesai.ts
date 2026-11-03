@@ -7,6 +7,7 @@ import {
   SINGLES,
   SINGLES_MATCHES,
   appearances,
+  courtIdOf,
   hasBackToBack,
   rankPlayers,
   type RosterMatch,
@@ -108,6 +109,14 @@ assert(mixedRank.cycled.length === 1, "subset cycle")
 // 2: -7 -5 +6 = -6
 // 3: -7 -6 +8 = -5
 assert(mixedRank.order.slice(1).join(",") === "3,2,1", `cycle tail ${mixedRank.order}`)
+
+assert(courtIdOf("ms-1") === "1", "singles court")
+assert(courtIdOf("md-3") === "2", "doubles court")
+assert(courtIdOf("xd-A-2") === "3", "mixed A court")
+assert(courtIdOf("xd-B-2") === "4", "mixed B court")
+assert(courtIdOf("sf1") === "3" && courtIdOf("final") === "3", "knockout on court 3")
+assert(courtIdOf("sf2") === "4", "second semi on court 4")
+assert(courtIdOf("nope") === null, "unknown match")
 
 console.log("names", MIXED_B[2], DOUBLES[4])
 console.log("yuesai checks passed")
