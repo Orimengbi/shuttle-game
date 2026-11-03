@@ -10,8 +10,8 @@ const noto = Noto_Sans_SC({
 });
 
 export const metadata: Metadata = {
-  title: "七人转 · 羽毛球单打轮转",
-  description: "7 人羽毛球单打轮转赛程。场次对齐，休息匀开，手机上就能记分。",
+  title: "南方月赛赛程",
+  description: "男单、男双全循环，混双分组循环加淘汰。没有连打，胜场相同先看交手，套圈看总净胜分。",
 };
 
 export default function RootLayout({
