@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="title">
+  <title id="title">??</title>
+  <g fill="#000">
+    <rect x="116" y="28" width="24" height="112" rx="12"/>
+    <rect x="116" y="28" width="24" height="112" rx="12" transform="rotate(-30 128 140)"/>
+    <rect x="116" y="28" width="24" height="112" rx="12" transform="rotate(30 128 140)"/>
+    <polygon points="128,132 174,178 128,224 82,178"/>
+  </g>
+</svg>

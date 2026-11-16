@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1600" height="840" viewBox="0 0 1600 840"><defs><filter id="grey"><feColorMatrix type="saturate" values="0"/></filter></defs><rect width="1600" height="840" fill="#f7f7f4"/><text x="60" y="78" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="40" font-weight="700" fill="#161616">Nanfang Badminton</text><text x="60" y="116" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="20" fill="#6b6b6b">Concepts for review — pick a direction (or tell me what you like in each).</text><rect x="60" y="150" width="474.667" height="630" rx="18" fill="#fff" stroke="#161616" stroke-width="2"/><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="90" y="190" width="414.667" height="300" preserveAspectRatio="xMidYMid meet">
+  <title id="c0-title">过线</title>
+  <path fill="#000" fill-rule="evenodd" d="M72 32H184A40 40 0 0 1 224 72V184A40 40 0 0 1 184 224H72A40 40 0 0 1 32 184V72A40 40 0 0 1 72 32ZM44 112H212V144H44Z"/>
+  <polygon fill="#000" points="128,88 164,128 128,168 92,128"/>
+</svg>
+</g><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="90" y="516" width="64" height="64" preserveAspectRatio="xMidYMid meet">
+  <title id="s064-title">过线</title>
+  <path fill="#000" fill-rule="evenodd" d="M72 32H184A40 40 0 0 1 224 72V184A40 40 0 0 1 184 224H72A40 40 0 0 1 32 184V72A40 40 0 0 1 72 32ZM44 112H212V144H44Z"/>
+  <polygon fill="#000" points="128,88 164,128 128,168 92,128"/>
+</svg>
+</g><text x="122" y="600" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#8a8a8a" text-anchor="middle">64px</text><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="180" y="548" width="32" height="32" preserveAspectRatio="xMidYMid meet">
+  <title id="s032-title">过线</title>
+  <path fill="#000" fill-rule="evenodd" d="M72 32H184A40 40 0 0 1 224 72V184A40 40 0 0 1 184 224H72A40 40 0 0 1 32 184V72A40 40 0 0 1 72 32ZM44 112H212V144H44Z"/>
+  <polygon fill="#000" points="128,88 164,128 128,168 92,128"/>
+</svg>
+</g><text x="196" y="600" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#8a8a8a" text-anchor="middle">32px</text><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="238" y="564" width="16" height="16" preserveAspectRatio="xMidYMid meet">
+  <title id="s016-title">过线</title>
+  <path fill="#000" fill-rule="evenodd" d="M72 32H184A40 40 0 0 1 224 72V184A40 40 0 0 1 184 224H72A40 40 0 0 1 32 184V72A40 40 0 0 1 72 32ZM44 112H212V144H44Z"/>
+  <polygon fill="#000" points="128,88 164,128 128,168 92,128"/>
+</svg>
+</g><text x="246" y="600" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#8a8a8a" text-anchor="middle">16px</text><text x="90.0" y="636" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="26" font-weight="700" fill="#161616">A · Net</text><text x="90.0" y="664" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#161616" letter-spacing="1.5">RECOMMENDED</text><text x="90.0" y="698" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="19" fill="#555">The cork crosses the tape.</text><rect x="562.667" y="150" width="474.667" height="630" rx="18" fill="#fff" stroke="#e4e4e0" stroke-width="1"/><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="592.667" y="190" width="414.667" height="300" preserveAspectRatio="xMidYMid meet">
+  <title id="c1-title">??</title>
+  <g fill="#000">
+    <rect x="36" y="28" width="48" height="192" rx="14"/>
+    <rect x="36" y="172" width="184" height="48" rx="14"/>
+    <polygon points="146,64 190,116 146,168 102,116"/>
+  </g>
+</svg>
+</g><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="592.667" y="516" width="64" height="64" preserveAspectRatio="xMidYMid meet">
+  <title id="s164-title">??</title>
+  <g fill="#000">
+    <rect x="36" y="28" width="48" height="192" rx="14"/>
+    <rect x="36" y="172" width="184" height="48" rx="14"/>
+    <polygon points="146,64 190,116 146,168 102,116"/>
+  </g>
+</svg>
+</g><text x="624.667" y="600" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#8a8a8a" text-anchor="middle">64px</text><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="682.667" y="548" width="32" height="32" preserveAspectRatio="xMidYMid meet">
+  <title id="s132-title">??</title>
+  <g fill="#000">
+    <rect x="36" y="28" width="48" height="192" rx="14"/>
+    <rect x="36" y="172" width="184" height="48" rx="14"/>
+    <polygon points="146,64 190,116 146,168 102,116"/>
+  </g>
+</svg>
+</g><text x="698.667" y="600" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#8a8a8a" text-anchor="middle">32px</text><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="740.667" y="564" width="16" height="16" preserveAspectRatio="xMidYMid meet">
+  <title id="s116-title">??</title>
+  <g fill="#000">
+    <rect x="36" y="28" width="48" height="192" rx="14"/>
+    <rect x="36" y="172" width="184" height="48" rx="14"/>
+    <polygon points="146,64 190,116 146,168 102,116"/>
+  </g>
+</svg>
+</g><text x="748.667" y="600" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#8a8a8a" text-anchor="middle">16px</text><text x="592.6666666666667" y="636" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="26" font-weight="700" fill="#161616">B · Corner</text><text x="592.6666666666667" y="670" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="19" fill="#555">The shuttle waits in our corner.</text><rect x="1065.33" y="150" width="474.667" height="630" rx="18" fill="#fff" stroke="#e4e4e0" stroke-width="1"/><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="1095.33" y="190" width="414.667" height="300" preserveAspectRatio="xMidYMid meet">
+  <title id="c2-title">??</title>
+  <g fill="#000">
+    <rect x="116" y="28" width="24" height="112" rx="12"/>
+    <rect x="116" y="28" width="24" height="112" rx="12" transform="rotate(-30 128 140)"/>
+    <rect x="116" y="28" width="24" height="112" rx="12" transform="rotate(30 128 140)"/>
+    <polygon points="128,132 174,178 128,224 82,178"/>
+  </g>
+</svg>
+</g><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="1095.33" y="516" width="64" height="64" preserveAspectRatio="xMidYMid meet">
+  <title id="s264-title">??</title>
+  <g fill="#000">
+    <rect x="116" y="28" width="24" height="112" rx="12"/>
+    <rect x="116" y="28" width="24" height="112" rx="12" transform="rotate(-30 128 140)"/>
+    <rect x="116" y="28" width="24" height="112" rx="12" transform="rotate(30 128 140)"/>
+    <polygon points="128,132 174,178 128,224 82,178"/>
+  </g>
+</svg>
+</g><text x="1127.33" y="600" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#8a8a8a" text-anchor="middle">64px</text><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="1185.33" y="548" width="32" height="32" preserveAspectRatio="xMidYMid meet">
+  <title id="s232-title">??</title>
+  <g fill="#000">
+    <rect x="116" y="28" width="24" height="112" rx="12"/>
+    <rect x="116" y="28" width="24" height="112" rx="12" transform="rotate(-30 128 140)"/>
+    <rect x="116" y="28" width="24" height="112" rx="12" transform="rotate(30 128 140)"/>
+    <polygon points="128,132 174,178 128,224 82,178"/>
+  </g>
+</svg>
+</g><text x="1201.33" y="600" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#8a8a8a" text-anchor="middle">32px</text><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="1243.33" y="564" width="16" height="16" preserveAspectRatio="xMidYMid meet">
+  <title id="s216-title">??</title>
+  <g fill="#000">
+    <rect x="116" y="28" width="24" height="112" rx="12"/>
+    <rect x="116" y="28" width="24" height="112" rx="12" transform="rotate(-30 128 140)"/>
+    <rect x="116" y="28" width="24" height="112" rx="12" transform="rotate(30 128 140)"/>
+    <polygon points="128,132 174,178 128,224 82,178"/>
+  </g>
+</svg>
+</g><text x="1251.33" y="600" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#8a8a8a" text-anchor="middle">16px</text><text x="1095.3333333333335" y="636" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="26" font-weight="700" fill="#161616">C · Shuttle</text><text x="1095.3333333333335" y="670" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="19" fill="#555">Three feathers, one cork.</text></svg>

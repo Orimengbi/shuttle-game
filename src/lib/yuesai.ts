@@ -20,6 +20,12 @@ export type Score = {
   scoreA: number
   scoreB: number
   done: boolean
+  /** Who serves the next point. Missing on older scores means side A. */
+  server?: "a" | "b"
+  /** Server at 0-0, so undoing every point can restore it. */
+  first?: "a" | "b"
+  /** Point order, used to undo the serve. */
+  rally?: string
 }
 
 export type Standing = {
@@ -165,7 +171,7 @@ export function hasBackToBack(slots: number[][]): boolean {
 }
 
 export function emptyScore(a: number, b: number): Score {
-  return { a, b, scoreA: 0, scoreB: 0, done: false }
+  return { a, b, scoreA: 0, scoreB: 0, done: false, server: "a", first: "a", rally: "" }
 }
 
 export function standings(ids: number[], matches: RosterMatch[], scores: Record<string, Score>): Standing[] {
@@ -362,10 +368,9 @@ export function expectedPlayers(id: string, scores: Record<string, Score>): { a:
   return { a: slot.a, b: slot.b }
 }
 
-function pairName(score: Score, id: number, leftGroup: "A" | "B"): string {
-  const left = leftGroup === "A" ? MIXED_A : MIXED_B
-  const right = leftGroup === "A" ? MIXED_B : MIXED_A
-  return id === score.a ? left[score.a] : right[score.b]
+function nameOnSide(score: Score, matchSide: "a" | "b", leftIsA: boolean): string {
+  if (matchSide === "a") return (leftIsA ? MIXED_A : MIXED_B)[score.a]
+  return (leftIsA ? MIXED_B : MIXED_A)[score.b]
 }
 
 export function slotName(slot: KnockoutSlot, side: "a" | "b", scores: Record<string, Score>): string {
@@ -375,9 +380,9 @@ export function slotName(slot: KnockoutSlot, side: "a" | "b", scores: Record<str
   const source = scores[side === "a" ? "sf1" : "sf2"]
   const wantWinner = slot.id === "final"
   if (!source?.done || source.scoreA === source.scoreB) return wantWinner ? "半决赛胜方" : "半决赛负方"
-  const winner = source.scoreA > source.scoreB ? source.a : source.b
-  const picked = wantWinner ? winner : winner === source.a ? source.b : source.a
-  return pairName(source, picked, side === "a" ? "A" : "B")
+  const winnerSide = source.scoreA > source.scoreB ? "a" : "b"
+  const pickedSide = wantWinner ? winnerSide : winnerSide === "a" ? "b" : "a"
+  return nameOnSide(source, pickedSide, side === "a")
 }
 
 function line(round: number, left: string, right: string, score?: Score): string {

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="title">
+  <title id="title">过线</title>
+  <path fill="#000" fill-rule="evenodd" d="M72 32H184A40 40 0 0 1 224 72V184A40 40 0 0 1 184 224H72A40 40 0 0 1 32 184V72A40 40 0 0 1 72 32ZM44 112H212V144H44Z"/>
+  <polygon fill="#000" points="128,88 164,128 128,168 92,128"/>
+</svg>

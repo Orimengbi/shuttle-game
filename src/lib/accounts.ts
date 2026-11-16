@@ -3,6 +3,23 @@ import fs from "node:fs"
 import path from "node:path"
 
 import type { CourtId, PublicUser, Role } from "@/lib/auth-types"
+import {
+  buildFixtures,
+  assignLineup,
+  canCaptainScore,
+  emptyRelay,
+  hasScores,
+  lineupLocked,
+  presentRelay,
+  relaysDone,
+  segmentStaffed,
+  teamsFromFixtureSheet,
+  validateTeamDraft,
+  type RelayEvent,
+  type RelaySegment,
+  type RelaySegmentScore,
+  type RelayTeam,
+} from "@/lib/relay"
 import { novemberTournament, type Tournament } from "@/lib/tournament"
 import { courtIdOf, expectedPlayers, pointsOf, type Score } from "@/lib/yuesai"
 
@@ -21,11 +38,20 @@ type SessionRecord = {
   expiresAt: number
 }
 
+export type RelayCaptainAccount = {
+  teamId: string
+  userId: string
+  username: string
+  password: string
+}
+
 type Store = {
   users: UserRecord[]
   sessions: SessionRecord[]
   tournaments: Tournament[]
   scores: Record<string, Record<string, Score>>
+  relay: RelayEvent | null
+  relayCaptains: RelayCaptainAccount[]
 }
 
 const dataDir = path.join(process.cwd(), "data")
@@ -33,7 +59,7 @@ const storePath = path.join(dataDir, "store.json")
 const adminPasswordPath = path.join(dataDir, "admin-password.txt")
 
 function emptyStore(): Store {
-  return { users: [], sessions: [], tournaments: [], scores: {} }
+  return { users: [], sessions: [], tournaments: [], scores: {}, relay: null, relayCaptains: [] }
 }
 
 function readStore(): Store {
@@ -45,12 +71,16 @@ function readStore(): Store {
       sessions?: SessionRecord[]
       tournaments?: Tournament[]
       scores?: unknown
+      relay?: RelayEvent | null
+      relayCaptains?: RelayCaptainAccount[]
     }
     return {
       users: Array.isArray(raw.users) ? raw.users : [],
       sessions: Array.isArray(raw.sessions) ? raw.sessions : [],
       tournaments: Array.isArray(raw.tournaments) ? raw.tournaments : [],
       scores: raw.scores && typeof raw.scores === "object" ? (raw.scores as Store["scores"]) : {},
+      relay: raw.relay && typeof raw.relay === "object" ? raw.relay : null,
+      relayCaptains: Array.isArray(raw.relayCaptains) ? raw.relayCaptains : [],
     }
   } catch {
     return emptyStore()
@@ -81,7 +111,13 @@ function randomPassword(): string {
 }
 
 function publicOf(user: UserRecord): PublicUser {
-  return { id: user.id, username: user.username, role: user.role, courts: [...user.courts] }
+  return {
+    id: user.id,
+    username: user.username,
+    role: user.role,
+    courts: [...(user.courts ?? [])],
+    ...(user.teamId ? { teamId: user.teamId } : {}),
+  }
 }
 
 function ensureAdmin(store: Store) {
@@ -106,9 +142,11 @@ function load(): Store {
   ensureAdmin(store)
   const normalized = normalizeUsers(store)
   const booksReady = ensureTournaments(store)
+  const relayReady = ensureRelay(store)
+  const captainsReady = ensureRelayCaptains(store)
   const now = Date.now()
   const sessions = store.sessions.filter((session) => session.expiresAt > now)
-  const changed = booksReady || normalized || sessions.length !== store.sessions.length || store.users.length !== before
+  const changed = booksReady || relayReady || captainsReady || normalized || sessions.length !== store.sessions.length || store.users.length !== before
   store.sessions = sessions
   if (changed) writeStore(store)
   return store
@@ -166,6 +204,58 @@ function ensureTournaments(store: Store): boolean {
     }
   }
   return changed
+}
+
+function ensureRelay(store: Store): boolean {
+  if (!store.relay || !store.relay.id) {
+    store.relay = emptyRelay()
+    return true
+  }
+  if (store.relay.startsAt === undefined) {
+    store.relay.startsAt = null
+    return true
+  }
+  return false
+}
+
+function ensureRelayCaptains(store: Store): boolean {
+  const relay = store.relay
+  if (!relay || relay.teams.length === 0) return false
+  if (!Array.isArray(store.relayCaptains)) store.relayCaptains = []
+  let changed = false
+  for (const team of relay.teams) {
+    const user = store.users.find((item) => item.role === "captain" && item.teamId === team.id)
+    if (user && store.relayCaptains.some((item) => item.userId === user.id)) continue
+    if (user) continue
+    const username = uniqueUsername(store, team.id.replace(/[^A-Za-z0-9]/g, "").slice(0, 4) || "T")
+    const password = randomPassword()
+    const salt = crypto.randomBytes(16)
+    const created: UserRecord = {
+      id: crypto.randomUUID(),
+      username,
+      role: "captain",
+      courts: [],
+      teamId: team.id,
+      salt: salt.toString("hex"),
+      passwordHash: hashPassword(password, salt),
+    }
+    store.users.push(created)
+    store.relayCaptains = store.relayCaptains.filter((item) => item.teamId !== team.id)
+    store.relayCaptains.push({ teamId: team.id, userId: created.id, username, password })
+    changed = true
+  }
+  return changed
+}
+
+function uniqueUsername(store: Store, prefix: string): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const bytes = crypto.randomBytes(4)
+    const suffix = [...bytes].map((byte) => alphabet[byte % alphabet.length]).join("")
+    const username = `${prefix}${suffix}`.slice(0, 20)
+    if (!store.users.some((user) => sameName(user.username, username))) return username
+  }
+  return `${prefix}${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`.slice(0, 20)
 }
 
 function liveTournament(store: Store): Tournament | null {
@@ -280,6 +370,30 @@ export function setCourts(
   return { user: publicOf(user) }
 }
 
+export function changeOwnPassword(
+  actor: PublicUser | null,
+  current: unknown,
+  next: unknown,
+  confirm: unknown
+): { ok: true } | { error: string; status: number } {
+  if (!actor) return { error: "先登录", status: 401 }
+  if (actor.role !== "admin") return { error: "只有管理能改这个密码", status: 403 }
+  const currentText = typeof current === "string" ? current : ""
+  const nextText = cleanPassword(next)
+  if (!nextText) return { error: "新密码至少 4 位", status: 400 }
+  if (typeof confirm !== "string" || confirm !== nextText) return { error: "两次新密码不一致", status: 400 }
+  const store = load()
+  const user = store.users.find((item) => item.id === actor.id && item.role === "admin")
+  if (!user || !passwordMatches(currentText, user)) return { error: "当前密码不对", status: 400 }
+  const salt = crypto.randomBytes(16)
+  user.salt = salt.toString("hex")
+  user.passwordHash = hashPassword(nextText, salt)
+  store.sessions = store.sessions.filter((session) => session.userId !== user.id)
+  writeStore(store)
+  fs.writeFileSync(adminPasswordPath, `${user.username} ${nextText}\n`, { mode: 0o600 })
+  return { ok: true }
+}
+
 export function setPassword(
   actor: PublicUser | null,
   id: string,
@@ -295,6 +409,7 @@ export function setPassword(
   const salt = crypto.randomBytes(16)
   user.salt = salt.toString("hex")
   user.passwordHash = hashPassword(next, salt)
+  store.sessions = store.sessions.filter((session) => session.userId !== user.id)
   writeStore(store)
   if (user.role === "admin") {
     fs.writeFileSync(adminPasswordPath, `${user.username} ${next}\n`, { mode: 0o600 })
@@ -369,7 +484,7 @@ export function readScorebook(tournamentId?: string): { tournament: Tournament |
   const store = load()
   const tournament = tournamentId
     ? store.tournaments.find((item) => item.id === tournamentId) ?? null
-    : liveTournament(store) ?? store.tournaments[0] ?? null
+    : liveTournament(store) ?? null
   if (!tournament) return { tournament: null, scores: {} }
   return { tournament, scores: store.scores[tournament.id] ?? {} }
 }
@@ -385,7 +500,22 @@ function isScore(value: unknown, id: string, scores: Record<string, Score>): Sco
   if (cap === null || score.scoreA < 0 || score.scoreB < 0 || score.scoreA > cap || score.scoreB > cap) return null
   if (score.scoreA === cap && score.scoreB === cap) return null
   if (typeof score.done !== "boolean") return null
-  return { a: score.a, b: score.b, scoreA: score.scoreA, scoreB: score.scoreB, done: score.done }
+  const server = score.server === "b" ? "b" : "a"
+  const first = score.first === "b" ? "b" : "a"
+  const rally = cleanRally(score.rally, score.scoreA, score.scoreB)
+  return { a: score.a, b: score.b, scoreA: score.scoreA, scoreB: score.scoreB, done: score.done, server, first, rally }
+}
+
+function cleanRally(value: unknown, scoreA: number, scoreB: number): string {
+  if (typeof value !== "string" || value.length !== scoreA + scoreB) return ""
+  let a = 0
+  let b = 0
+  for (const mark of value) {
+    if (mark === "a") a += 1
+    else if (mark === "b") b += 1
+    else return ""
+  }
+  return a === scoreA && b === scoreB ? value : ""
 }
 
 export function putScore(
@@ -420,4 +550,220 @@ export function resetScores(actor: PublicUser | null): { ok: true } | { error: s
   store.scores[tournament.id] = {}
   writeStore(store)
   return { ok: true }
+}
+
+function canScore(actor: PublicUser | null): boolean {
+  return actor?.role === "admin" || actor?.role === "scorer"
+}
+
+export function readRelay(): RelayEvent {
+  const relay = load().relay ?? emptyRelay()
+  return { ...relay, startsAt: relay.startsAt ?? null }
+}
+
+export function listRelayCaptains(
+  actor: PublicUser | null
+): { accounts: { teamId: string; teamName: string; username: string; password: string }[] } | { error: string; status: number } {
+  if (!actor) return { error: "先登录", status: 401 }
+  if (actor.role !== "admin") return { error: "只有管理能看队伍账号", status: 403 }
+  const store = load()
+  const relay = store.relay ?? emptyRelay()
+  const accounts = (store.relayCaptains ?? []).flatMap((item) => {
+    const team = relay.teams.find((team) => team.id === item.teamId)
+    if (!team) return []
+    return [{ teamId: item.teamId, teamName: team.name, username: item.username, password: item.password }]
+  })
+  return { accounts }
+}
+
+export function setRelayStart(
+  actor: PublicUser | null,
+  value: unknown
+): { event: RelayEvent } | { error: string; status: number } {
+  if (!actor) return { error: "先登录", status: 401 }
+  if (actor.role !== "admin") return { error: "只有管理能定开赛时间", status: 403 }
+  const store = load()
+  const current = store.relay ?? emptyRelay()
+  if (value === null || value === "") {
+    current.startsAt = null
+  } else if (typeof value === "string" && Number.isFinite(Date.parse(value))) {
+    current.startsAt = new Date(value).toISOString()
+  } else {
+    return { error: "开赛时间不对", status: 400 }
+  }
+  store.relay = current
+  writeStore(store)
+  return { event: presentRelay(readRelay(), actor) }
+}
+
+export function updateRelayLineup(
+  actor: PublicUser | null,
+  teamId: unknown,
+  input: unknown
+): { event: RelayEvent } | { error: string; status: number } {
+  if (!actor) return { error: "先登录", status: 401 }
+  if (typeof teamId !== "string" || !teamId) return { error: "没有这支队伍", status: 400 }
+  if (actor.role === "captain" && actor.teamId !== teamId) return { error: "只能改自己队的出阵", status: 403 }
+  if (actor.role !== "admin" && actor.role !== "captain") return { error: "不能改出阵", status: 403 }
+  const store = load()
+  const current = store.relay
+  if (!current) return { error: "还没有这场接力赛", status: 404 }
+  if (lineupLocked(current.startsAt)) return { error: "开赛前 1 小时已锁定出阵", status: 409 }
+  const team = current.teams.find((item) => item.id === teamId)
+  if (!team) return { error: "没有这支队伍", status: 404 }
+  const raw = input && typeof input === "object" ? (input as Record<string, unknown>) : {}
+  const pair = (key: string): [string, string] | null => {
+    const value = raw[key]
+    if (!Array.isArray(value) || value.length < 2) return null
+    if (typeof value[0] !== "string" || typeof value[1] !== "string") return null
+    return [value[0].trim(), value[1].trim()]
+  }
+  const text = (key: string) => (typeof raw[key] === "string" ? raw[key].trim() : null)
+  const r1xd = pair("r1xd")
+  const r1md = pair("r1md")
+  const r2md = pair("r2md")
+  const r2xd = pair("r2xd")
+  const ms = text("ms")
+  const ws = text("ws")
+  if (!r1xd || !r1md || !r2md || !r2xd || ms === null || ws === null) return { error: "出阵格式不对", status: 400 }
+  const assigned = assignLineup(team, { r1xd, r1md, r2md, r2xd, ms, ws })
+  if ("error" in assigned) return { error: assigned.error, status: 400 }
+  const index = current.teams.findIndex((item) => item.id === teamId)
+  current.teams[index] = assigned.team
+  store.relay = current
+  writeStore(store)
+  return { event: presentRelay(readRelay(), actor) }
+}
+
+export function saveRelayTeams(
+  actor: PublicUser | null,
+  input: unknown
+): { event: RelayEvent } | { error: string; status: number } {
+  if (!actor) return { error: "先登录", status: 401 }
+  if (actor.role !== "admin") return { error: "只有管理能录入队伍", status: 403 }
+  if (!Array.isArray(input)) return { error: "队伍格式不对", status: 400 }
+  const store = load()
+  const current = store.relay ?? emptyRelay()
+  if (lineupLocked(current.startsAt)) return { error: "开赛前 1 小时已锁定出阵", status: 409 }
+  if (hasScores(current)) return { error: "已经开始记分，不能再改队伍", status: 409 }
+  const teams: RelayTeam[] = input.map((item) => normalizeTeam(item))
+  const problem = validateTeamDraft(teams)
+  if (problem) return { error: problem, status: 400 }
+  store.relay = { ...current, teams, fixtures: [] }
+  writeStore(store)
+  return { event: store.relay }
+}
+
+function normalizeTeam(value: unknown): RelayTeam {
+  const raw = value && typeof value === "object" ? (value as Record<string, unknown>) : {}
+  const text = (key: string) => (typeof raw[key] === "string" ? raw[key].trim() : "")
+  const pair = (key: string): [string, string] => {
+    const value = raw[key]
+    if (!Array.isArray(value)) return ["", ""]
+    return [typeof value[0] === "string" ? value[0].trim() : "", typeof value[1] === "string" ? value[1].trim() : ""]
+  }
+  const members = Array.isArray(raw.members) ? raw.members.filter((item): item is string => typeof item === "string").map((item) => item.trim()) : []
+  while (members.length < 10) members.push("")
+  const id = typeof raw.id === "string" && raw.id.trim() ? raw.id.trim() : crypto.randomUUID()
+  return {
+    id,
+    name: text("name"),
+    members: members.slice(0, 10),
+    r1xd: pair("r1xd"),
+    r1md: pair("r1md"),
+    r2md: pair("r2md"),
+    r2xd: pair("r2xd"),
+    ms: text("ms"),
+    ws: text("ws"),
+  }
+}
+
+export function generateRelay(actor: PublicUser | null): { event: RelayEvent } | { error: string; status: number } {
+  if (!actor) return { error: "先登录", status: 401 }
+  if (actor.role !== "admin") return { error: "只有管理能生成赛程", status: 403 }
+  const store = load()
+  const current = store.relay ?? emptyRelay()
+  if (lineupLocked(current.startsAt)) return { error: "开赛前 1 小时已锁定出阵", status: 409 }
+  if (hasScores(current)) return { error: "已经开始记分，不能重新生成", status: 409 }
+  const problem = validateTeamDraft(current.teams)
+  if (problem) return { error: problem, status: 400 }
+  store.relay = { ...current, fixtures: buildFixtures(current.teams.map((team) => team.id)) }
+  writeStore(store)
+  return { event: store.relay }
+}
+
+export function importRelayTeams(
+  actor: PublicUser | null,
+  rows: string[][]
+): { event: RelayEvent } | { error: string; status: number } {
+  if (!actor) return { error: "先登录", status: 401 }
+  if (actor.role !== "admin") return { error: "只有管理能导入对阵表", status: 403 }
+  const store = load()
+  const current = store.relay ?? emptyRelay()
+  if (lineupLocked(current.startsAt)) return { error: "开赛前 1 小时已锁定出阵", status: 409 }
+  if (current.fixtures.length === 0) return { error: "先生成循环赛，再导入人员", status: 409 }
+  if (hasScores(current)) return { error: "已经开始记分，不能再改人员", status: 409 }
+  const parsed = teamsFromFixtureSheet(current, rows)
+  if ("error" in parsed) return { error: parsed.error, status: 400 }
+  current.teams = parsed.teams
+  store.relay = current
+  writeStore(store)
+  return { event: current }
+}
+
+export function scoreRelay(
+  actor: PublicUser | null,
+  fixtureId: string,
+  segment: RelaySegment,
+  body: unknown
+): { event: RelayEvent } | { error: string; status: number } {
+  if (segment !== "relay1" && segment !== "relay2" && segment !== "ms" && segment !== "ws") {
+    return { error: "没有这个项目", status: 400 }
+  }
+  const store = load()
+  const current = store.relay
+  if (!current) return { error: "还没有这场接力赛", status: 404 }
+  const fixture = current.fixtures.find((item) => item.id === fixtureId)
+  if (!fixture) return { error: "没有这场对抗", status: 404 }
+  if (!actor) return { error: "先登录记分员账号", status: 401 }
+  if (actor.role === "captain") {
+    if (!actor.teamId || (fixture.home !== actor.teamId && fixture.away !== actor.teamId)) {
+      return { error: "只能记自己组的比赛", status: 403 }
+    }
+    if (!canCaptainScore(current.startsAt, actor.teamId, fixture)) return { error: "开赛后才能记分", status: 409 }
+  } else if (!canScore(actor)) {
+    return { error: "先登录记分员账号", status: 401 }
+  }
+  if (!segmentStaffed(current, fixture, segment)) return { error: "先导入人员再记分", status: 409 }
+  if ((segment === "ms" || segment === "ws") && !relaysDone(fixture)) {
+    return { error: "接力赛打完再开始单打", status: 409 }
+  }
+  const next = cleanSegment(body, segment === "ms" || segment === "ws" ? "single" : "relay", fixture[segment])
+  if (!next) return { error: "这个比分不对", status: 400 }
+  fixture[segment] = next
+  writeStore(store)
+  return { event: current }
+}
+
+function cleanSegment(value: unknown, kind: "relay" | "single", previous: RelaySegmentScore): RelaySegmentScore | null {
+  if (!value || typeof value !== "object") return null
+  const raw = value as RelaySegmentScore
+  if (!Number.isInteger(raw.home) || !Number.isInteger(raw.away)) return null
+  if (raw.home < 0 || raw.away < 0) return null
+  const cap = kind === "single" ? 21 : 42
+  if (raw.home > cap || raw.away > cap || (raw.home === cap && raw.away === cap)) return null
+  const homeStep = Math.abs(raw.home - previous.home)
+  const awayStep = Math.abs(raw.away - previous.away)
+  if (homeStep + awayStep > 1) return null
+  if (raw.home === previous.home + 1 && raw.server !== "home") return null
+  if (raw.away === previous.away + 1 && raw.server !== "away") return null
+  if (raw.done) {
+    const target = kind === "single" ? 21 : 42
+    if (Math.max(raw.home, raw.away) < target || raw.home === raw.away) return null
+  }
+  if (typeof raw.done !== "boolean") return null
+  if (raw.server !== "home" && raw.server !== "away") return null
+  if (raw.first !== "home" && raw.first !== "away") return null
+  const rally = typeof raw.rally === "string" ? raw.rally : ""
+  return { home: raw.home, away: raw.away, done: raw.done, server: raw.server, first: raw.first, rally }
 }

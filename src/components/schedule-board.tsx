@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 
-import { LoginDialog } from "@/components/auth-dialogs"
+import { LoginDialog, PasswordDialog } from "@/components/auth-dialogs"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -170,6 +170,7 @@ export function ScheduleBoard() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [me, setMe] = useState<PublicUser | null>(null)
   const [loginOpen, setLoginOpen] = useState(false)
+  const [passwordOpen, setPasswordOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [archiveOpen, setArchiveOpen] = useState(false)
   const [title, setTitle] = useState(nextMonthTitle)
@@ -203,7 +204,8 @@ export function ScheduleBoard() {
           }
           return nextUser
         })
-        const current = selectedId && items.some((item) => item.id === selectedId) ? selectedId : items[0]?.id ?? null
+        const liveId = items.find((item) => item.status === "live")?.id ?? null
+        const current = selectedId && items.some((item) => item.id === selectedId) ? selectedId : liveId
         if (current !== selectedId) setSelectedId(current)
         if (!current) return
         const scoreResponse = await fetch(`/api/scores?tournament=${encodeURIComponent(current)}`, { cache: "no-store" })
@@ -278,6 +280,9 @@ export function ScheduleBoard() {
             <Button type="button" className="h-11 bg-[#ffe14a] font-bold text-[#10240f] hover:bg-[#ffe14a]/90" onClick={() => setCreateOpen(true)}>
               新建月赛
             </Button>
+            <Button type="button" variant="outline" className="h-11 border-white/20 bg-transparent text-white hover:bg-white/10" onClick={() => setPasswordOpen(true)}>
+              修改密码
+            </Button>
             {selected?.status === "live" ? (
               <Button type="button" variant="outline" className="h-11 border-white/20 bg-transparent text-white hover:bg-white/10" onClick={() => setArchiveOpen(true)}>
                 归档本届
@@ -310,33 +315,37 @@ export function ScheduleBoard() {
         <header className="banner flex flex-wrap items-end justify-between gap-3 px-4 py-4 sm:px-6">
           <div>
             <p className="text-xs font-bold tracking-[0.28em] text-[#ffe14a]">ORDER OF PLAY</p>
-            <h1 className="mt-1 text-2xl font-bold text-white sm:text-3xl">{selected?.title ?? "南方月赛赛程表"}</h1>
-            {selected?.status === "archived" ? <p className="mt-1 text-sm text-[#ffe14a]">已归档，只显示比分</p> : null}
+            <h1 className="mt-1 text-2xl font-bold text-white sm:text-3xl">{selected?.title ?? "当下无比赛"}</h1>
+            {selected?.status === "archived" ? <p className="mt-1 text-sm text-[#ffe14a]">已结束，只显示比分</p> : null}
           </div>
           <Link href="/" className="text-sm font-bold text-[#ffe14a]">
             返回
           </Link>
         </header>
-        <div className="flex gap-2 overflow-x-auto border-b border-white/10 bg-[#071910] px-3 py-2 lg:hidden">
-          {[
-            ["all", "全部场地"],
-            ["1", "1号场"],
-            ["2", "2号场"],
-            ["3", "3号场"],
-            ["4", "4号场"],
-          ].map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              aria-pressed={court === id}
-              onClick={() => setCourt(id)}
-              className="event-tab h-10 shrink-0 rounded-full px-3 text-sm font-bold"
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className={`grid grid-cols-1 ${court === "all" ? "md:grid-cols-2 xl:grid-cols-4" : ""}`}>
+        {selected ? (
+          <div className="flex gap-2 overflow-x-auto border-b border-white/10 bg-[#071910] px-3 py-2 lg:hidden">
+            {[
+              ["all", "全部场地"],
+              ["1", "1号场"],
+              ["2", "2号场"],
+              ["3", "3号场"],
+              ["4", "4号场"],
+            ].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={court === id}
+                onClick={() => setCourt(id)}
+                className="event-tab h-10 shrink-0 rounded-full px-3 text-sm font-bold"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="px-6 py-16 text-center text-xl font-bold text-white">当下无比赛</p>
+        )}
+        {selected ? <div className={`grid grid-cols-1 ${court === "all" ? "md:grid-cols-2 xl:grid-cols-4" : ""}`}>
           {columns.map((column) => {
             const done = column.lines.filter((line) => line.done).length
             return (
@@ -356,9 +365,10 @@ export function ScheduleBoard() {
               </section>
             )
           })}
-        </div>
+        </div> : null}
       </section>
       <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} onSuccess={setMe} />
+      <PasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
           <DialogHeader>

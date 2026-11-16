@@ -9,6 +9,7 @@ import {
   appearances,
   courtIdOf,
   hasBackToBack,
+  slotName,
   rankPlayers,
   type RosterMatch,
   type Score,
@@ -117,6 +118,22 @@ assert(courtIdOf("xd-B-2") === "4", "mixed B court")
 assert(courtIdOf("sf1") === "3" && courtIdOf("final") === "3", "knockout on court 3")
 assert(courtIdOf("sf2") === "4", "second semi on court 4")
 assert(courtIdOf("nope") === null, "unknown match")
+
+const sameIndexFinal = {
+  id: "final" as const,
+  label: "决赛",
+  court: "3号场",
+  a: 3,
+  b: 1,
+  groupA: "W" as const,
+  groupB: "W" as const,
+}
+const sameIndexScores = {
+  sf1: { a: 3, b: 3, scoreA: 16, scoreB: 21, done: true },
+  sf2: { a: 4, b: 1, scoreA: 16, scoreB: 21, done: true },
+}
+assert(slotName(sameIndexFinal, "a", sameIndexScores) === "幸运&郎英", "final keeps B winner when indexes match")
+assert(slotName(sameIndexFinal, "b", sameIndexScores) === "小郁&元气满满", "final keeps A winner")
 
 console.log("names", MIXED_B[2], DOUBLES[4])
 console.log("yuesai checks passed")

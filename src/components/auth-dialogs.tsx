@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useId, useState, type FormEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -18,6 +18,74 @@ import { COURTS, type PublicUser } from "@/lib/auth-types"
 async function readError(response: Response): Promise<string> {
   const body: { error?: unknown } = await response.json().catch(() => ({}))
   return typeof body.error === "string" ? body.error : "没完成"
+}
+
+export function PasswordDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>修改管理密码</DialogTitle>
+          <DialogDescription>先填现在的密码，再设一个新的。至少 4 位。改完后，所有窗口都会退出。</DialogDescription>
+        </DialogHeader>
+        <PasswordForm />
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function PasswordForm() {
+  const fieldId = useId()
+  const [current, setCurrent] = useState("")
+  const [next, setNext] = useState("")
+  const [confirm, setConfirm] = useState("")
+  const [error, setError] = useState("")
+  const [pending, setPending] = useState(false)
+
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    setPending(true)
+    setError("")
+    try {
+      const response = await fetch("/api/password", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ current, next, confirm }),
+      })
+      if (!response.ok) {
+        setError(await readError(response))
+        return
+      }
+      window.location.reload()
+    } catch {
+      setError("没改成")
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <form className="grid gap-3" onSubmit={(event) => void submit(event)}>
+      <div className="grid gap-2">
+        <Label htmlFor={`${fieldId}-current`}>当前密码</Label>
+        <Input id={`${fieldId}-current`} className="h-11" type="password" autoComplete="current-password" value={current} onChange={(event) => setCurrent(event.target.value)} />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor={`${fieldId}-next`}>新密码</Label>
+        <Input id={`${fieldId}-next`} className="h-11" type="password" autoComplete="new-password" value={next} onChange={(event) => setNext(event.target.value)} />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor={`${fieldId}-confirm`}>再输一次新密码</Label>
+        <Input id={`${fieldId}-confirm`} className="h-11" type="password" autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} />
+      </div>
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <DialogFooter>
+        <Button type="submit" className="h-11" disabled={pending}>
+          {pending ? "正在保存" : "保存新密码"}
+        </Button>
+      </DialogFooter>
+    </form>
+  )
 }
 
 export function LoginDialog({
@@ -90,18 +158,16 @@ export function LoginDialog({
 export function AccountsDialog({
   open,
   onOpenChange,
-  adminId,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  adminId: string
 }) {
   const [users, setUsers] = useState<PublicUser[]>([])
   const [error, setError] = useState("")
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [nextPassword, setNextPassword] = useState<Record<string, string>>({})
-  const [adminPassword, setAdminPassword] = useState("")
+  const [passwordOpen, setPasswordOpen] = useState(false)
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [saved, setSaved] = useState("")
 
@@ -168,7 +234,6 @@ export function AccountsDialog({
       return
     }
     setNextPassword((current) => ({ ...current, [id]: "" }))
-    setAdminPassword("")
     setError("")
     setSaved("密码已更新")
   }
@@ -252,21 +317,11 @@ export function AccountsDialog({
           ))}
           <section className="rounded-2xl border border-border p-3">
             <p className="font-medium">管理密码</p>
-            <div className="mt-2 flex gap-2">
-              <Input
-                className="h-11"
-                type="password"
-                autoComplete="new-password"
-                placeholder="新的管理密码"
-                aria-label="新的管理密码"
-                value={adminPassword}
-                onChange={(event) => setAdminPassword(event.target.value)}
-              />
-              <Button type="button" variant="outline" className="h-11" onClick={() => void changePassword(adminId, adminPassword)}>
-                保存
-              </Button>
-            </div>
+            <Button type="button" variant="outline" className="mt-2 h-11" onClick={() => setPasswordOpen(true)}>
+              修改密码
+            </Button>
           </section>
+          <PasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           {saved ? <p className="text-sm text-primary">{saved}</p> : null}
         </div>

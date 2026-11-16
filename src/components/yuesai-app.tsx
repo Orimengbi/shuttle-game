@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { Check, Copy } from "lucide-react"
+import { ArrowLeftRight, Check, Copy } from "lucide-react"
 
-import { AccountsDialog, LoginDialog } from "@/components/auth-dialogs"
+import { AccountsDialog, LoginDialog, PasswordDialog } from "@/components/auth-dialogs"
+import { RelayApp } from "@/components/relay-app"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -37,6 +38,18 @@ import {
 } from "@/lib/yuesai"
 import type { PublicUser } from "@/lib/auth-types"
 
+function rallyOf(score: Score): string | null {
+  if (typeof score.rally !== "string" || score.rally.length !== score.scoreA + score.scoreB) return null
+  let a = 0
+  let b = 0
+  for (const mark of score.rally) {
+    if (mark === "a") a += 1
+    else if (mark === "b") b += 1
+    else return null
+  }
+  return a === score.scoreA && b === score.scoreB ? score.rally : null
+}
+
 function sinkFinished<T>(items: T[], done: (item: T) => boolean): T[] {
   const open: T[] = []
   const closed: T[] = []
@@ -61,10 +74,12 @@ export function YuesaiApp() {
   const [me, setMe] = useState<PublicUser | null>(null)
   const [loginOpen, setLoginOpen] = useState(false)
   const [accountsOpen, setAccountsOpen] = useState(false)
+  const [passwordOpen, setPasswordOpen] = useState(false)
   const [notice, setNotice] = useState("")
   const [copied, setCopied] = useState(false)
   const [resetOpen, setResetOpen] = useState(false)
   const [edition, setEdition] = useState<{ title: string; status: "live" | "archived" } | null>(null)
+  const [relayLive, setRelayLive] = useState<boolean | null>(null)
   const writing = useRef(0)
   const failed = useRef(false)
   const queue = useRef(Promise.resolve())
@@ -79,6 +94,30 @@ export function YuesaiApp() {
     setEdition((current) => (JSON.stringify(current) === JSON.stringify(nextEdition) ? current : nextEdition))
     setReady(true)
   }
+
+  useEffect(() => {
+    let stop = false
+    async function pullRelay() {
+      try {
+        const response = await fetch("/api/relay", { cache: "no-store" })
+        if (stop) return
+        if (!response.ok) {
+          setRelayLive(false)
+          return
+        }
+        const body: { event?: { fixtures?: unknown[] } } = await response.json()
+        setRelayLive((body.event?.fixtures?.length ?? 0) > 0)
+      } catch {
+        if (!stop) setRelayLive(false)
+      }
+    }
+    void pullRelay()
+    const timer = window.setInterval(() => void pullRelay(), 5000)
+    return () => {
+      stop = true
+      window.clearInterval(timer)
+    }
+  }, [])
 
   useEffect(() => {
     let stop = false
@@ -196,11 +235,34 @@ export function YuesaiApp() {
 
   function bump(id: string, base: Score, side: "scoreA" | "scoreB", delta: number, target: number) {
     if (base.done) return
+    const key = side === "scoreA" ? "a" : "b"
     const other = side === "scoreA" ? base.scoreB : base.scoreA
     const max = other >= target ? target - 1 : target
     const next = Math.max(0, Math.min(max, base[side] + delta))
     if (next === base[side]) return
-    write(id, { ...base, [side]: next })
+    const first = base.first === "b" ? "b" : "a"
+    const prior = rallyOf(base)
+    if (delta > 0) {
+      const rally = prior === null ? (base.scoreA + base.scoreB === 0 ? key : "") : prior + key
+      write(id, { ...base, [side]: next, server: key, first, rally })
+      return
+    }
+    let server: "a" | "b" = base.server === "b" ? "b" : "a"
+    let rally = prior ?? ""
+    if (prior?.endsWith(key)) {
+      rally = prior.slice(0, -1)
+      const last = rally[rally.length - 1]
+      server = last === "a" || last === "b" ? last : first
+    } else if (server === key) {
+      server = key === "a" ? "b" : "a"
+    }
+    write(id, { ...base, [side]: next, server, first, rally })
+  }
+
+  function chooseServer(id: string, base: Score, server: "a" | "b") {
+    if (base.done) return
+    const blank = base.scoreA + base.scoreB === 0
+    write(id, { ...base, server, first: blank ? server : base.first === "b" ? "b" : "a", rally: blank ? "" : base.rally ?? "" })
   }
 
   function finish(id: string, base: Score) {
@@ -225,6 +287,50 @@ export function YuesaiApp() {
     } catch {
       setCopied(false)
     }
+  }
+
+  if (!ready) return <main className="min-h-screen" />
+
+  if (edition?.status !== "live") {
+    if (relayLive === null) return <main className="min-h-screen" />
+    if (relayLive) return <RelayApp />
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-5 sm:px-6 sm:py-8">
+        <header className="banner relative mb-6 overflow-hidden rounded-3xl">
+          <div className="court-grid pointer-events-none absolute inset-0 opacity-70" />
+          <div className="relative px-5 py-4 sm:px-6">
+            <p className="text-xs font-bold tracking-[0.22em] text-[#ffe14a]">南方羽毛球馆</p>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight text-white sm:text-4xl">当下无比赛</h1>
+          </div>
+        </header>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/board" className="inline-flex h-11 items-center rounded-full bg-[#ffe14a] px-4 text-sm font-bold text-[#10240f]">
+            赛程表
+          </Link>
+          {me ? (
+            <Link href="/relay" className="inline-flex h-11 items-center rounded-full border border-[#ffe14a] px-4 text-sm font-bold text-[#ffe14a]">
+              11/17接力赛
+            </Link>
+          ) : null}
+          {me?.role === "admin" ? (
+            <Button type="button" variant="outline" className="h-11" onClick={() => setPasswordOpen(true)}>
+              修改密码
+            </Button>
+          ) : null}
+          {me ? (
+            <Button type="button" variant="ghost" className="h-11" onClick={() => void logout()}>
+              退出
+            </Button>
+          ) : (
+            <Button type="button" className="h-11" onClick={() => setLoginOpen(true)}>
+              登录
+            </Button>
+          )}
+        </div>
+        <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} onSuccess={setMe} />
+        <PasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
+      </main>
+    )
   }
 
   return (
@@ -262,13 +368,18 @@ export function YuesaiApp() {
           </Button>
         ) : null}
         {me?.role === "admin" ? (
+          <Button type="button" variant="outline" className="h-11" onClick={() => setPasswordOpen(true)}>
+            修改密码
+          </Button>
+        ) : null}
+        {me?.role === "admin" ? (
           <Button type="button" variant="ghost" className="h-11" onClick={() => setResetOpen(true)}>
             清空比分
           </Button>
         ) : null}
         {me ? (
           <span className="text-sm font-medium text-white/80">
-            {me.role === "admin" ? "管理" : (me.courts ?? []).length === 0 ? "记分员，还没分场地" : (me.courts ?? []).map((court) => `${court}号场`).join("、")} · {me.username}
+            {me.role === "admin" ? "管理" : me.role === "captain" ? "队长" : (me.courts ?? []).length === 0 ? "记分员，还没分场地" : (me.courts ?? []).map((court) => `${court}号场`).join("、")} · {me.username}
           </span>
         ) : null}
         {me ? (
@@ -283,9 +394,11 @@ export function YuesaiApp() {
         <Link href="/board" className="inline-flex h-11 items-center rounded-full bg-[#ffe14a] px-4 text-sm font-bold text-[#10240f]">
           赛程表
         </Link>
-        <Link href="/zhuan" className="text-sm font-medium text-[#ffe14a] underline">
-          通用七人转
-        </Link>
+        {me ? (
+          <Link href="/relay" className="inline-flex h-11 items-center rounded-full border border-[#ffe14a] px-4 text-sm font-bold text-[#ffe14a]">
+            11/17接力赛
+          </Link>
+        ) : null}
       </div>
 
       {notice ? <p className="mb-3 rounded-2xl bg-destructive/10 px-3 py-2 text-sm text-destructive">{notice}</p> : null}
@@ -302,6 +415,7 @@ export function YuesaiApp() {
           bump={bump}
           finish={finish}
           reopen={reopen}
+          chooseServer={chooseServer}
           allowed={allowed}
           lockNote={lockNote}
         />
@@ -317,6 +431,7 @@ export function YuesaiApp() {
           bump={bump}
           finish={finish}
           reopen={reopen}
+          chooseServer={chooseServer}
           allowed={allowed}
           lockNote={lockNote}
         />
@@ -328,6 +443,7 @@ export function YuesaiApp() {
           bump={bump}
           finish={finish}
           reopen={reopen}
+          chooseServer={chooseServer}
           allowed={allowed}
           lockNote={lockNote}
           initialGroup={me && me.role !== "admin" && (me.courts ?? []).includes("4") && !(me.courts ?? []).includes("3") ? "B" : "A"}
@@ -366,7 +482,10 @@ export function YuesaiApp() {
       </Dialog>
       <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} onSuccess={setMe} />
       {me?.role === "admin" ? (
-        <AccountsDialog open={accountsOpen} onOpenChange={setAccountsOpen} adminId={me.id} />
+        <>
+          <AccountsDialog open={accountsOpen} onOpenChange={setAccountsOpen} />
+          <PasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
+        </>
       ) : null}
     </main>
   )
@@ -382,6 +501,7 @@ function EventBoard({
   bump,
   finish,
   reopen,
+  chooseServer,
   allowed,
   lockNote,
 }: {
@@ -394,6 +514,7 @@ function EventBoard({
   bump: (id: string, base: Score, side: "scoreA" | "scoreB", delta: number, target: number) => void
   finish: (id: string, base: Score) => void
   reopen: (id: string, base: Score) => void
+  chooseServer: (id: string, base: Score, server: "a" | "b") => void
   allowed: (id: string) => boolean
   lockNote: (id: string) => string
 }) {
@@ -438,6 +559,7 @@ function EventBoard({
               onBump={(side, delta) => bump(selected.id, scores[selected.id], side, delta, target)}
               onFinish={() => finish(selected.id, scores[selected.id])}
               onReopen={() => reopen(selected.id, scores[selected.id])}
+              onSetServer={(side) => chooseServer(selected.id, scores[selected.id], side)}
             />
           </div>
         ) : (
@@ -487,6 +609,7 @@ function MixedBoard({
   bump,
   finish,
   reopen,
+  chooseServer,
   allowed,
   lockNote,
   initialGroup = "A",
@@ -496,6 +619,7 @@ function MixedBoard({
   bump: (id: string, base: Score, side: "scoreA" | "scoreB", delta: number, target: number) => void
   finish: (id: string, base: Score) => void
   reopen: (id: string, base: Score) => void
+  chooseServer: (id: string, base: Score, server: "a" | "b") => void
   allowed: (id: string) => boolean
   lockNote: (id: string) => string
   initialGroup?: "A" | "B"
@@ -610,6 +734,7 @@ function MixedBoard({
                   onBump={(side, delta) => bump(slot.id, score, side, delta, POINTS.xd)}
                   onFinish={() => finish(slot.id, score)}
                   onReopen={() => reopen(slot.id, score)}
+                  onSetServer={(side) => chooseServer(slot.id, score, side)}
                 />
               </div>
             )
@@ -692,6 +817,7 @@ function MixedBoard({
             onBump={(side, delta) => bump(selected.id, read(selected.id, selected.a, selected.b), side, delta, POINTS.xd)}
             onFinish={() => finish(selected.id, read(selected.id, selected.a, selected.b))}
             onReopen={() => reopen(selected.id, read(selected.id, selected.a, selected.b))}
+            onSetServer={(side) => chooseServer(selected.id, read(selected.id, selected.a, selected.b), side)}
           />
         </div>
       ) : (
@@ -741,14 +867,14 @@ function MixedBoard({
           {(group === "A" ? ["sf1"] : ["sf2"]).map((id) => {
             const slot = slotById.get(id)
             if (!slot) return null
-            return <KnockCard key={slot.id} slotId={slot.id} label={`${slot.label} · ${slot.court}`} left={slotName(slot, "a", scores)} right={slotName(slot, "b", scores)} a={slot.a} b={slot.b} read={read} bump={bump} finish={finish} reopen={reopen} allowed={allowed} lockNote={lockNote} />
+            return <KnockCard key={slot.id} slotId={slot.id} label={`${slot.label} · ${slot.court}`} left={slotName(slot, "a", scores)} right={slotName(slot, "b", scores)} a={slot.a} b={slot.b} read={read} bump={bump} finish={finish} reopen={reopen} chooseServer={chooseServer} allowed={allowed} lockNote={lockNote} />
           })}
           {group === "A" ? <p className="rounded-2xl bg-white/10 px-3 py-2 text-sm">半决赛后休息一轮，负方不用连打</p> : null}
           {group === "A"
             ? ["third", "final"].map((id) => {
                 const slot = slotById.get(id)
                 if (!slot) return null
-                return <KnockCard key={slot.id} slotId={slot.id} label={`${slot.label} · ${slot.court}`} left={slotName(slot, "a", scores)} right={slotName(slot, "b", scores)} a={slot.a} b={slot.b} read={read} bump={bump} finish={finish} reopen={reopen} allowed={allowed} lockNote={lockNote} />
+                return <KnockCard key={slot.id} slotId={slot.id} label={`${slot.label} · ${slot.court}`} left={slotName(slot, "a", scores)} right={slotName(slot, "b", scores)} a={slot.a} b={slot.b} read={read} bump={bump} finish={finish} reopen={reopen} chooseServer={chooseServer} allowed={allowed} lockNote={lockNote} />
               })
             : null}
         </div>
@@ -768,6 +894,7 @@ function KnockCard({
   bump,
   finish,
   reopen,
+  chooseServer,
   allowed,
   lockNote,
 }: {
@@ -781,6 +908,7 @@ function KnockCard({
   bump: (id: string, base: Score, side: "scoreA" | "scoreB", delta: number, target: number) => void
   finish: (id: string, base: Score) => void
   reopen: (id: string, base: Score) => void
+  chooseServer: (id: string, base: Score, server: "a" | "b") => void
   allowed: (id: string) => boolean
   lockNote: (id: string) => string
 }) {
@@ -807,6 +935,7 @@ function KnockCard({
       onBump={(side, delta) => bump(slotId, score, side, delta, POINTS.xd)}
       onFinish={() => finish(slotId, score)}
       onReopen={() => reopen(slotId, score)}
+      onSetServer={(side) => chooseServer(slotId, score, side)}
     />
   )
 }
@@ -822,6 +951,7 @@ function ScoreCard({
   onBump,
   onFinish,
   onReopen,
+  onSetServer,
 }: {
   kicker: string
   left: string
@@ -833,21 +963,50 @@ function ScoreCard({
   onBump: (side: "scoreA" | "scoreB", delta: number) => void
   onFinish: () => void
   onReopen: () => void
+  onSetServer: (side: "a" | "b") => void
 }) {
+  const [flipped, setFlipped] = useState(false)
+  useEffect(() => {
+    setFlipped(false)
+  }, [left, right, score.a, score.b])
   const leader = score.scoreA === score.scoreB ? null : score.scoreA > score.scoreB ? "a" : "b"
   const reached = leader !== null && Math.max(score.scoreA, score.scoreB) >= target
+  const server = score.server === "b" ? "b" : "a"
   function capped(side: "scoreA" | "scoreB") {
     const mine = score[side]
     const other = side === "scoreA" ? score.scoreB : score.scoreA
     const max = other >= target ? target - 1 : target
     return mine >= max
   }
+  const sides = [
+    { key: "a" as const, name: left, value: score.scoreA, side: "scoreA" as const },
+    { key: "b" as const, name: right, value: score.scoreB, side: "scoreB" as const },
+  ]
+  const view = flipped ? [sides[1], sides[0]] : sides
   return (
     <article className="scoreboard rounded-3xl p-4">
-      <p className="mb-3 text-xs font-bold tracking-[0.18em] text-[#ffe14a]">{kicker}</p>
+      <p className="text-xs font-bold tracking-[0.18em] text-[#ffe14a]">{kicker}</p>
+      <div className="my-3 flex justify-center">
+        <button type="button" className="swap-sides" aria-label="换边" aria-pressed={flipped} onClick={() => setFlipped((current) => !current)}>
+          <ArrowLeftRight aria-hidden="true" />
+        </button>
+      </div>
       <div className="grid grid-cols-2 gap-3">
-        <Side name={left} value={score.scoreA} ahead={leader === "a"} done={score.done} editable={editable} capped={capped("scoreA")} onMinus={() => onBump("scoreA", -1)} onPlus={() => onBump("scoreA", 1)} />
-        <Side name={right} value={score.scoreB} ahead={leader === "b"} done={score.done} editable={editable} capped={capped("scoreB")} onMinus={() => onBump("scoreB", -1)} onPlus={() => onBump("scoreB", 1)} />
+        {view.map((item) => (
+          <Side
+            key={item.key}
+            name={item.name}
+            value={item.value}
+            serving={server === item.key && score.scoreA + score.scoreB > 0}
+            won={leader === item.key}
+            done={score.done}
+            editable={editable}
+            capped={capped(item.side)}
+            onServe={() => onSetServer(item.key)}
+            onMinus={() => onBump(item.side, -1)}
+            onPlus={() => onBump(item.side, 1)}
+          />
+        ))}
       </div>
       {!editable && lockNote ? <p className="mt-3 text-sm text-white/65">{lockNote}</p> : null}
       {editable && score.done ? (
@@ -874,28 +1033,38 @@ function ScoreCard({
 function Side({
   name,
   value,
-  ahead,
+  serving,
+  won,
   done,
   editable,
   capped,
+  onServe,
   onMinus,
   onPlus,
 }: {
   name: string
   value: number
-  ahead: boolean
+  serving: boolean
+  won: boolean
   done: boolean
   editable: boolean
   capped: boolean
+  onServe: () => void
   onMinus: () => void
   onPlus: () => void
 }) {
   return (
-    <div className={`score-side rounded-2xl px-2 py-3 text-center ${ahead ? "ahead" : ""}`}>
-      <p className="truncate text-sm font-bold">
-        {name}
-        {done && ahead ? " · 胜" : ""}
-      </p>
+    <div className={`score-side rounded-2xl px-2 py-3 text-center ${serving && !done ? "ahead" : ""}`}>
+      {editable && !done ? (
+        <button type="button" className="w-full truncate text-sm font-bold" onClick={onServe}>
+          {name}
+        </button>
+      ) : (
+        <p className="truncate text-sm font-bold">
+          {name}
+          {done && won ? " · 胜" : ""}
+        </p>
+      )}
       <p className="score-num my-1 text-5xl font-bold sm:text-6xl">{value}</p>
       {editable ? (
         <div className="grid grid-cols-2 gap-2">

@@ -1,4 +1,4 @@
-export type Role = "admin" | "scorer"
+export type Role = "admin" | "scorer" | "captain"
 
 export type CourtId = "1" | "2" | "3" | "4"
 
@@ -7,6 +7,7 @@ export type PublicUser = {
   username: string
   role: Role
   courts: CourtId[]
+  teamId?: string
 }
 
 export const COURTS: { id: CourtId; label: string; detail: string }[] = [
